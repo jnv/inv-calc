@@ -1,0 +1,770 @@
+<!doctype html>
+<html lang="cs">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Investiční modelář</title>
+    <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body>
+    <div class="wrap">
+      <h1 id="pageTitle">Investiční modelář</h1>
+      <p class="lead">
+        Jednoduchý simulátor jednoho portfolia po měsících. Umí scénáře výnosu,
+        inflaci, roční poplatek, vstupní nákupní poplatek, jednorázové i
+        opakované výběry, periodický kickback a ukládání stavu do URL.
+      </p>
+
+      <div class="grid">
+        <div class="panel controls">
+          <form id="modelForm">
+            <div class="section">
+              <h2>Model</h2>
+              <div class="fields">
+                <div>
+                  <label for="modelName">Název modelu</label>
+                  <input
+                    id="modelName"
+                    name="modelName"
+                    type="text"
+                    value="Můj scénář"
+                    maxlength="120"
+                  />
+                </div>
+                <div class="button-row-3">
+                  <button id="runBtn" type="button">Přepočítat</button>
+                  <button id="presetBtn" class="secondary" type="button">
+                    Ukázka
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div class="section">
+              <h2>Portfolio</h2>
+              <div class="fields">
+                <div class="row-2">
+                  <div>
+                    <label for="initial"
+                      >Počáteční investice <small>(Kč)</small></label
+                    >
+                    <input
+                      id="initial"
+                      name="initial"
+                      type="number"
+                      value="400000"
+                      step="1000"
+                      min="0"
+                    />
+                  </div>
+                  <div>
+                    <label for="monthly"
+                      >Měsíční vklad <small>(Kč)</small></label
+                    >
+                    <input
+                      id="monthly"
+                      name="monthly"
+                      type="number"
+                      value="10000"
+                      step="100"
+                      min="0"
+                    />
+                  </div>
+                </div>
+                <div class="row-3">
+                  <div>
+                    <label for="years">Horizont <small>(roky)</small></label>
+                    <input
+                      id="years"
+                      name="years"
+                      type="number"
+                      value="30"
+                      step="1"
+                      min="1"
+                    />
+                  </div>
+                  <div>
+                    <label for="fee"
+                      >Roční poplatek <small>(% p.a.)</small></label
+                    >
+                    <input
+                      id="fee"
+                      name="fee"
+                      type="number"
+                      value="0.6"
+                      step="0.1"
+                      min="0"
+                    />
+                  </div>
+                  <div>
+                    <label for="buyFee"
+                      >Nákupní poplatek <small>(%)</small></label
+                    >
+                    <input
+                      id="buyFee"
+                      name="buyFee"
+                      type="number"
+                      value="2.7"
+                      step="0.1"
+                      min="0"
+                    />
+                  </div>
+                </div>
+                <div class="row-3">
+                  <div>
+                    <label for="inflation"
+                      >Inflace <small>(% p.a.)</small></label
+                    >
+                    <input
+                      id="inflation"
+                      name="inflation"
+                      type="number"
+                      value="2.5"
+                      step="0.1"
+                      min="0"
+                    />
+                  </div>
+                  <div>
+                    <label for="tax"
+                      >Daň při výběru ze zisku <small>(%)</small></label
+                    >
+                    <input
+                      id="tax"
+                      name="tax"
+                      type="number"
+                      value="15"
+                      step="0.1"
+                      min="0"
+                    />
+                  </div>
+                  <div>
+                    <label for="timing">Příspěvky</label>
+                    <select id="timing" name="timing">
+                      <option value="end">Na konci měsíce</option>
+                      <option value="start">Na začátku měsíce</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="section">
+              <h2>Kickback</h2>
+              <div class="fields">
+                <div class="row-3">
+                  <div>
+                    <label for="kickbackPct">Kickback (%)</label>
+                    <input
+                      id="kickbackPct"
+                      name="kickbackPct"
+                      type="number"
+                      value="0"
+                      step="0.1"
+                      min="0"
+                    />
+                  </div>
+                  <div>
+                    <label for="kickbackEveryYears">Každých N let</label>
+                    <input
+                      id="kickbackEveryYears"
+                      name="kickbackEveryYears"
+                      type="number"
+                      value="5"
+                      step="1"
+                      min="1"
+                    />
+                  </div>
+                  <div>
+                    <label for="kickbackBase">Základ kickbacku</label>
+                    <select id="kickbackBase" name="kickbackBase">
+                      <option value="fees">
+                        Z uhrazených nákupních poplatků
+                      </option>
+                      <option value="contributions">
+                        Z nominálních vkladů
+                      </option>
+                      <option value="portfolio">
+                        Z aktuální hodnoty portfolia
+                      </option>
+                    </select>
+                  </div>
+                </div>
+                <div class="help">
+                  Kickback je modelován jako periodické připsání peněz do
+                  portfolia. U rebate/fee refund modelů se často vrací část
+                  poplatků nebo management fee jako dodatečné jednotky nebo
+                  hotovostní rebate.
+                </div>
+              </div>
+            </div>
+
+            <div class="section">
+              <h2>Scénáře výnosu</h2>
+              <div class="fields">
+                <div class="row-3">
+                  <div>
+                    <label for="rate1">Konzervativní</label>
+                    <input
+                      id="rate1"
+                      name="rate1"
+                      type="number"
+                      value="4"
+                      step="0.1"
+                    />
+                  </div>
+                  <div>
+                    <label for="rate2">Střední</label>
+                    <input
+                      id="rate2"
+                      name="rate2"
+                      type="number"
+                      value="7"
+                      step="0.1"
+                    />
+                  </div>
+                  <div>
+                    <label for="rate3">Optimistický</label>
+                    <input
+                      id="rate3"
+                      name="rate3"
+                      type="number"
+                      value="10"
+                      step="0.1"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="section">
+              <h2>Výběry</h2>
+              <div class="fields">
+                <div>
+                  <label for="withdrawals">Jednotlivé výběry</label>
+                  <textarea id="withdrawals" name="withdrawals">
+60,50000
+120,200000</textarea
+                  >
+                  <div class="help">
+                    Formát: měsíc,částka. Částka je čistá částka, kterou chcete
+                    dostat ven po dani.
+                  </div>
+                </div>
+                <div class="row-3">
+                  <div>
+                    <label for="recStart">Opakované od měsíce</label>
+                    <input
+                      id="recStart"
+                      name="recStart"
+                      type="number"
+                      value="0"
+                      step="1"
+                      min="0"
+                    />
+                  </div>
+                  <div>
+                    <label for="recEvery">Každých měsíců</label>
+                    <input
+                      id="recEvery"
+                      name="recEvery"
+                      type="number"
+                      value="12"
+                      step="1"
+                      min="1"
+                    />
+                  </div>
+                  <div>
+                    <label for="recAmount">Čistý opakovaný výběr</label>
+                    <input
+                      id="recAmount"
+                      name="recAmount"
+                      type="number"
+                      value="0"
+                      step="100"
+                      min="0"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label for="recEnd">Opakovat do měsíce</label>
+                  <input
+                    id="recEnd"
+                    name="recEnd"
+                    type="number"
+                    value="276"
+                    step="1"
+                    min="0"
+                  />
+                </div>
+              </div>
+            </div>
+          </form>
+        </div>
+
+        <div class="output">
+          <div class="chips" id="metaChips"></div>
+          <div class="stats" id="stats"></div>
+          <div id="chart"></div>
+          <div>
+            <h2>Roční přehled</h2>
+            <table>
+              <thead>
+                <tr>
+                  <th>Rok</th>
+                  <th>Hrubé vklady</th>
+                  <th>Nákupní poplatky</th>
+                  <th>Kickback</th>
+                  <th>Čisté výběry</th>
+                  <th>Daň z výběrů</th>
+                  <th>Nominální hodnota</th>
+                  <th>Reálná hodnota</th>
+                </tr>
+              </thead>
+              <tbody id="summaryBody"></tbody>
+            </table>
+            <p class="note">
+              Tabulka ukazuje střední scénář. Nákupní poplatek je počítán jako
+              front-end load, tedy část z vkladu, která se vůbec neinvestuje. To
+              odpovídá běžné definici front-end load fee.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      const fmt = new Intl.NumberFormat('cs-CZ', {
+        style: 'currency',
+        currency: 'CZK',
+        maximumFractionDigits: 0,
+      });
+      const numFmt = new Intl.NumberFormat('cs-CZ', {
+        maximumFractionDigits: 1,
+      });
+      const inputIds = [
+        'modelName',
+        'initial',
+        'monthly',
+        'years',
+        'fee',
+        'buyFee',
+        'inflation',
+        'tax',
+        'timing',
+        'kickbackPct',
+        'kickbackEveryYears',
+        'kickbackBase',
+        'rate1',
+        'rate2',
+        'rate3',
+        'withdrawals',
+        'recStart',
+        'recEvery',
+        'recAmount',
+        'recEnd',
+      ];
+      const num = (id) => Number(document.getElementById(id).value || 0);
+      const txt = (id) => document.getElementById(id).value || '';
+      let suppressUrlSync = false;
+
+      function parseLines(text) {
+        return text
+          .split(/\n+/)
+          .map((x) => x.trim())
+          .filter(Boolean);
+      }
+
+      function parseWithdrawals() {
+        const map = new Map();
+        parseLines(txt('withdrawals')).forEach((line) => {
+          const parts = line.split(/[;,\s]+/).filter(Boolean);
+          if (parts.length < 2) return;
+          const month = Number(parts[0]);
+          const amount = Number(String(parts[1]).replace(',', '.'));
+          if (month > 0 && amount > 0)
+            map.set(month, (map.get(month) || 0) + amount);
+        });
+        return map;
+      }
+
+      function addRecurring(map, totalMonths) {
+        const amount = num('recAmount');
+        const start = num('recStart');
+        const every = Math.max(1, num('recEvery'));
+        const end = Math.min(totalMonths, num('recEnd'));
+        if (amount <= 0 || start <= 0) return map;
+        for (let m = start; m <= end; m += every)
+          map.set(m, (map.get(m) || 0) + amount);
+        return map;
+      }
+
+      function withdrawFromPortfolio(state, netTarget, taxRate) {
+        if (state.value <= 0 || netTarget <= 0)
+          return { gross: 0, tax: 0, net: 0 };
+        const profitRatio = Math.max(
+          0,
+          (state.value - state.basis) / state.value
+        );
+        const effectiveNetRatio = 1 - profitRatio * taxRate;
+        if (effectiveNetRatio <= 0) return { gross: 0, tax: 0, net: 0 };
+        const grossNeeded = Math.min(
+          state.value,
+          netTarget / effectiveNetRatio
+        );
+        const profitPart = grossNeeded * profitRatio;
+        const tax = profitPart * taxRate;
+        const net = grossNeeded - tax;
+        const basisReduction = grossNeeded * (1 - profitRatio);
+        state.value -= grossNeeded;
+        state.basis = Math.max(0, state.basis - basisReduction);
+        return { gross: grossNeeded, tax, net };
+      }
+
+      function maybeKickback(month, state, yearBuyFees, yearGrossDeposits) {
+        const pct = num('kickbackPct') / 100;
+        const everyYears = Math.max(1, num('kickbackEveryYears'));
+        const base = txt('kickbackBase');
+        if (pct <= 0) return 0;
+        if (month % (everyYears * 12) !== 0) return 0;
+        if (base === 'fees') return yearBuyFees * pct;
+        if (base === 'contributions') return yearGrossDeposits * pct;
+        return state.value * pct;
+      }
+
+      function scenario(rate) {
+        const years = num('years');
+        const totalMonths = years * 12;
+        const fee = num('fee') / 100;
+        const buyFee = num('buyFee') / 100;
+        const inflation = num('inflation') / 100;
+        const tax = num('tax') / 100;
+        const timing = txt('timing');
+        const withdrawals = addRecurring(parseWithdrawals(), totalMonths);
+        const grossMonthlyRate = Math.pow(1 + rate / 100, 1 / 12) - 1;
+        const feeMonthlyRate = Math.pow(1 + fee, 1 / 12) - 1;
+        const netMonthlyFactor = (1 + grossMonthlyRate) / (1 + feeMonthlyRate);
+        const inflationMonthlyFactor = Math.pow(1 + inflation, 1 / 12);
+
+        const state = { value: 0, basis: 0 };
+        let cumulativeGrossDeposits = 0;
+        let cumulativeBuyFees = 0;
+        let cumulativeNetInvested = 0;
+        let cumulativeNetWithdrawals = 0;
+        let cumulativeTax = 0;
+        let cumulativeKickback = 0;
+
+        let yGrossDeposits = 0,
+          yBuyFees = 0,
+          yKickback = 0,
+          yOut = 0,
+          yTax = 0;
+        const initialGross = num('initial');
+        const initialFee = initialGross * buyFee;
+        const initialInvested = initialGross - initialFee;
+        state.value = initialInvested;
+        state.basis = initialInvested;
+        cumulativeGrossDeposits += initialGross;
+        cumulativeBuyFees += initialFee;
+        cumulativeNetInvested += initialInvested;
+        yGrossDeposits += initialGross;
+        yBuyFees += initialFee;
+
+        const timeline = [
+          {
+            month: 0,
+            year: 0,
+            nominal: state.value,
+            real: state.value,
+            grossDeposits: cumulativeGrossDeposits,
+            buyFees: cumulativeBuyFees,
+            netWithdrawals: 0,
+            tax: 0,
+            kickback: 0,
+            netInvested: cumulativeNetInvested,
+          },
+        ];
+        const yearly = [];
+
+        function addContribution() {
+          const gross = num('monthly');
+          const feeAmt = gross * buyFee;
+          const invested = gross - feeAmt;
+          state.value += invested;
+          state.basis += invested;
+          cumulativeGrossDeposits += gross;
+          cumulativeBuyFees += feeAmt;
+          cumulativeNetInvested += invested;
+          yGrossDeposits += gross;
+          yBuyFees += feeAmt;
+        }
+
+        for (let m = 1; m <= totalMonths; m++) {
+          if (timing === 'start') addContribution();
+
+          state.value *= netMonthlyFactor;
+
+          const targetWithdrawal = withdrawals.get(m) || 0;
+          if (targetWithdrawal > 0) {
+            const result = withdrawFromPortfolio(state, targetWithdrawal, tax);
+            cumulativeNetWithdrawals += result.net;
+            cumulativeTax += result.tax;
+            yOut += result.net;
+            yTax += result.tax;
+          }
+
+          if (timing === 'end') addContribution();
+
+          const kickback = maybeKickback(m, state, yBuyFees, yGrossDeposits);
+          if (kickback > 0) {
+            state.value += kickback;
+            state.basis += kickback;
+            cumulativeKickback += kickback;
+            yKickback += kickback;
+          }
+
+          const nominal = state.value;
+          const real = nominal / Math.pow(inflationMonthlyFactor, m);
+          timeline.push({
+            month: m,
+            year: m / 12,
+            nominal,
+            real,
+            grossDeposits: cumulativeGrossDeposits,
+            buyFees: cumulativeBuyFees,
+            netWithdrawals: cumulativeNetWithdrawals,
+            tax: cumulativeTax,
+            kickback: cumulativeKickback,
+            netInvested: cumulativeNetInvested,
+          });
+
+          if (m % 12 === 0) {
+            yearly.push({
+              year: m / 12,
+              grossDeposits: yGrossDeposits,
+              buyFees: yBuyFees,
+              kickback: yKickback,
+              netWithdrawals: yOut,
+              tax: yTax,
+              nominal,
+              real,
+            });
+            yGrossDeposits = 0;
+            yBuyFees = 0;
+            yKickback = 0;
+            yOut = 0;
+            yTax = 0;
+          }
+        }
+
+        const finalNominal = timeline.at(-1).nominal;
+        const finalReal = timeline.at(-1).real;
+        const profitAfterTax =
+          finalNominal +
+          cumulativeNetWithdrawals -
+          cumulativeGrossDeposits -
+          cumulativeTax +
+          cumulativeKickback;
+        return {
+          rate,
+          timeline,
+          yearly,
+          finalNominal,
+          finalReal,
+          grossDeposits: cumulativeGrossDeposits,
+          buyFees: cumulativeBuyFees,
+          kickback: cumulativeKickback,
+          netInvested: cumulativeNetInvested,
+          totalNetWithdrawals: cumulativeNetWithdrawals,
+          totalTax: cumulativeTax,
+          profitAfterTax,
+        };
+      }
+
+      function collectState() {
+        return Object.fromEntries(
+          new FormData(document.getElementById('modelForm'))
+        );
+      }
+
+      function applyState(state) {
+        suppressUrlSync = true;
+        for (const id of inputIds)
+          if (state[id] != null) document.getElementById(id).value = state[id];
+        suppressUrlSync = false;
+      }
+
+      function syncUrl(replace = true) {
+        if (suppressUrlSync) return;
+        const params = new URLSearchParams();
+        const state = collectState();
+        for (const [key, value] of Object.entries(state))
+          if (value !== '' && value != null) params.set(key, value);
+        const qs = params.toString();
+        history[replace ? 'replaceState' : 'pushState'](
+          {},
+          '',
+          `${location.pathname}?${qs}`
+        );
+      }
+
+      function hydrateFromUrl() {
+        const params = new URLSearchParams(location.search);
+        const state = {};
+        for (const id of inputIds)
+          if (params.has(id)) state[id] = params.get(id);
+        applyState(state);
+      }
+
+      function updateTitle(name) {
+        const title = (name || 'Investiční modelář').trim();
+        document.title = `${title} – investiční modelář`;
+      }
+
+      function escapeHtml(str) {
+        return String(str)
+          .replaceAll('&', '&amp;')
+          .replaceAll('<', '&lt;')
+          .replaceAll('>', '&gt;')
+          .replaceAll('"', '&quot;')
+          .replaceAll("'", '&#39;');
+      }
+
+      function render() {
+        updateTitle(txt('modelName'));
+        syncUrl(true);
+
+        const scenarios = [
+          { name: 'Konzervativní', color: '#62727f', rate: num('rate1') },
+          { name: 'Střední', color: '#0a67c2', rate: num('rate2') },
+          { name: 'Optimistický', color: '#0d8b62', rate: num('rate3') },
+        ].map((s) => ({ ...s, data: scenario(s.rate) }));
+
+        const mid = scenarios[1].data;
+        document.getElementById('metaChips').innerHTML = `
+        <div class="chip">Model: ${escapeHtml(txt('modelName') || 'Bez názvu')}</div>
+        <div class="chip">Horizont: ${num('years')} let</div>
+        <div class="chip">Poplatek: ${numFmt.format(num('fee'))} % p.a.</div>
+        <div class="chip">Nákupní poplatek: ${numFmt.format(num('buyFee'))} %</div>
+        <div class="chip">Kickback: ${numFmt.format(num('kickbackPct'))} % každých ${num('kickbackEveryYears')} let</div>
+      `;
+
+        document.getElementById('stats').innerHTML = `
+        <div class="stat"><div class="k">Konečná hodnota</div><div class="v">${fmt.format(mid.finalNominal)}</div></div>
+        <div class="stat"><div class="k">Reálná hodnota</div><div class="v">${fmt.format(mid.finalReal)}</div></div>
+        <div class="stat"><div class="k">Hrubé vklady</div><div class="v">${fmt.format(mid.grossDeposits)}</div></div>
+        <div class="stat"><div class="k">Nákupní poplatky</div><div class="v">${fmt.format(mid.buyFees)}</div></div>
+        <div class="stat"><div class="k">Kickback</div><div class="v">${fmt.format(mid.kickback)}</div></div>
+        <div class="stat"><div class="k">Čisté výběry</div><div class="v">${fmt.format(mid.totalNetWithdrawals)}</div></div>
+      `;
+
+        const traces = [];
+        for (const s of scenarios) {
+          traces.push({
+            x: s.data.timeline.map((p) => p.year),
+            y: s.data.timeline.map((p) => p.nominal),
+            type: 'scatter',
+            mode: 'lines',
+            name: `${s.name} nominálně (${s.rate} % p.a.)`,
+            line: { width: 3, color: s.color },
+          });
+        }
+        traces.push({
+          x: mid.timeline.map((p) => p.year),
+          y: mid.timeline.map((p) => p.real),
+          type: 'scatter',
+          mode: 'lines',
+          name: 'Střední scénář reálně',
+          line: { width: 2, color: '#915f00', dash: 'dash' },
+        });
+        traces.push({
+          x: mid.timeline.map((p) => p.year),
+          y: mid.timeline.map(
+            (p) => p.netInvested - p.netWithdrawals + p.kickback
+          ),
+          type: 'scatter',
+          mode: 'lines',
+          name: 'Čisté investované cashflow',
+          line: { width: 2, color: '#9aa5b1', dash: 'dot' },
+        });
+
+        Plotly.newPlot(
+          'chart',
+          traces,
+          {
+            margin: { l: 65, r: 20, t: 20, b: 52 },
+            paper_bgcolor: '#ffffff',
+            plot_bgcolor: '#ffffff',
+            xaxis: { title: 'Roky', gridcolor: '#edf2f7' },
+            yaxis: {
+              title: 'Hodnota (Kč)',
+              gridcolor: '#edf2f7',
+              tickformat: ',.0f',
+            },
+            legend: { orientation: 'h', y: 1.14 },
+            hovermode: 'x unified',
+          },
+          { responsive: true, displaylogo: false }
+        );
+
+        document.getElementById('summaryBody').innerHTML = mid.yearly
+          .map(
+            (r) => `
+        <tr>
+          <td>${r.year}</td>
+          <td>${fmt.format(r.grossDeposits)}</td>
+          <td>${fmt.format(r.buyFees)}</td>
+          <td>${fmt.format(r.kickback)}</td>
+          <td>${fmt.format(r.netWithdrawals)}</td>
+          <td>${fmt.format(r.tax)}</td>
+          <td>${fmt.format(r.nominal)}</td>
+          <td>${fmt.format(r.real)}</td>
+        </tr>
+      `
+          )
+          .join('');
+      }
+
+      function loadPreset() {
+        applyState({
+          modelName: 'Portfolio s poplatkem a kickbackem',
+          initial: '400000',
+          monthly: '10000',
+          years: '40',
+          fee: '0.6',
+          buyFee: '2.7',
+          inflation: '2.5',
+          tax: '15',
+          timing: 'end',
+          kickbackPct: '100',
+          kickbackEveryYears: '5',
+          kickbackBase: 'fees',
+          rate1: '4',
+          rate2: '7',
+          rate3: '10',
+          withdrawals: '60,50000\n120,200000',
+          recStart: '180',
+          recEvery: '12',
+          recAmount: '120000',
+          recEnd: '276',
+        });
+        render();
+      }
+
+      const modelForm = document.getElementById('modelForm');
+      modelForm.addEventListener('change', () => syncUrl(true));
+      modelForm.addEventListener('input', (e) => {
+        if (e.target.id === 'modelName') updateTitle(txt('modelName'));
+        syncUrl(true);
+      });
+
+      document.getElementById('runBtn').addEventListener('click', render);
+      document
+        .getElementById('presetBtn')
+        .addEventListener('click', loadPreset);
+
+      hydrateFromUrl();
+      render();
+    </script>
+  </body>
+</html>
